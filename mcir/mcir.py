@@ -1,9 +1,8 @@
 import numpy as np
 import scipy.optimize as sopt
 import multiprocessing as mp
-import matplotlib.pyplot as plt
-import _winapi
 import itertools
+import sys
 
 
 
@@ -244,8 +243,9 @@ class T1Calc:
         ir_data = ir_data.reshape(-1, ir_dim)
         mask = mask.reshape(-1, 1)
 
-        #mp.spawn.set_executable(_winapi.GetModuleFileName(0))
         if sys.platform == "win32":
+            # mp.spawn.set_executable(_winapi.GetModuleFileName(0))
+            import _winapi
             mp.set_executable(_winapi.GetModuleFileName(0))
         pool = mp.Pool(processes=self.processes)  # initialize multiprocess
         # run multiprocess and convert to numpy array
@@ -379,15 +379,3 @@ class T1Calc:
             gtol=0.1,
             diff_step=0.01
         )
-
-    def plot_voxel_fit(self, x=30, y=30, z=20):
-        t1 = self.t1_matrix[x, y, z, :].squeeze()
-        m0 = self.m0_matrix[x, y, z, :].squeeze()
-        ti = self.ti
-        data = self.ir_data[x, y, z, :].squeeze()
-        m = (
-            m0[np.newaxis, :] * (1 - 2 * np.exp(-ti[:, np.newaxis] / t1[np.newaxis, :]))
-        ).sum(1)
-        plt.figure()
-        plt.plot(ti, np.abs(m), "b")
-        plt.plot(ti, data, "*k")
