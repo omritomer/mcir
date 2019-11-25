@@ -5,8 +5,6 @@ import itertools
 import sys
 
 
-
-
 class T1Calc:
     def __init__(
         self,
