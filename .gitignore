@@ -27,6 +27,8 @@ wheels/
 
 .github/
 .idea/
+.editorconfig
+Makefile
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

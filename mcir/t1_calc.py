@@ -16,7 +16,6 @@ class T1Calc:
         outlier_range=10,
         parallel_processing=False,
         processes=4,
-        iterative_optimization=False,
         init_t1=None,
         init_m0="dependent",
         optimization_range=None,
@@ -36,7 +35,6 @@ class T1Calc:
         self.outlier_range = outlier_range
         self.parallel_processing = parallel_processing
         self.processes = processes
-        self.iterative_optimization = iterative_optimization
         self.init_t1 = init_t1
         self.init_m0 = init_m0
         self.optimization_range = optimization_range
@@ -68,53 +66,35 @@ class T1Calc:
         flat_ir_data = ir_data.reshape(-1, ir_dim)
         flat_mask = mask.reshape(-1)  # flatten binary mask
 
-        optimization_params = self.get_optimization_params(self.n_components, self.iterative_optimization, self.max_t1,
+        optimization_params = self.get_optimization_params(self.n_components, self.max_t1,
                                                            self.min_t1, self.max_m0, self.min_m0, self.init_t1,
-                                                           self.init_m0, self.optimization_range, self.t1_lower_bounds,
-                                                           self.t1_upper_bounds, self.m0_lower_bounds,
-                                                           self.m0_upper_bounds, self.gm_range, self.n_gm_components)
+                                                           self.init_m0, self.t1_lower_bounds, self.t1_upper_bounds,
+                                                           self.m0_lower_bounds, self.m0_upper_bounds)
         self.optimization_results, self.t1_matrix, self.m0_matrix, self.norm_m0_matrix = self.analyze_t1(
             ir_data, ti_list, mask, im_dims, self.n_components, ir_dim, optimization_params,
-            self.iterative_optimization, self.parallel_processing, self.processes,
+            self.parallel_processing, self.processes,
         )
 
     def get_optimization_params(
             self,
             n_components,
-            iterative_optimization,
             max_t1,
             min_t1,
             max_m0,
             min_m0,
             init_t1,
             init_m0,
-            optimization_range,
             t1_lower_bounds,
             t1_upper_bounds,
             m0_lower_bounds,
             m0_upper_bounds,
-            gm_range,
-            n_gm_components,
     ):
-        if iterative_optimization:
-            optimization_params = self.get_iterative_params(max_t1, min_t1, max_m0, min_m0)
-        else:
-            optimization_params = self.get_noniterative_params(n_components, max_t1, min_t1, max_m0, min_m0,
-                                                            init_t1, init_m0, optimization_range, t1_lower_bounds,
-                                                            t1_upper_bounds, m0_lower_bounds, m0_upper_bounds, gm_range,
-                                                            n_gm_components)
+        optimization_params = self.get_params(n_components, max_t1, min_t1, max_m0, min_m0,
+                                                            init_t1, init_m0, t1_lower_bounds,
+                                                            t1_upper_bounds, m0_lower_bounds, m0_upper_bounds)
         return optimization_params
 
-    def get_iterative_params(
-            self,
-            max_t1,
-            min_t1,
-            max_m0,
-            min_m0,
-    ):
-        return {'max_t1': max_t1, 'min_t1': min_t1, 'max_m0': max_m0, 'min_m0': min_m0}
-
-    def get_noniterative_params(
+    def get_params(
             self,
             n_components,
             max_t1,
@@ -123,13 +103,10 @@ class T1Calc:
             min_m0,
             init_t1,
             init_m0,
-            optimization_range,
             t1_lower_bounds,
             t1_upper_bounds,
             m0_lower_bounds,
             m0_upper_bounds,
-            gm_range,
-            n_gm_components,
     ):
         t1_lower_bounds = t1_lower_bounds if t1_lower_bounds is not None else self.set_bounds(n_components, min_t1)
         t1_upper_bounds = t1_upper_bounds if t1_upper_bounds is not None else self.set_bounds(n_components, max_t1)
@@ -156,12 +133,11 @@ class T1Calc:
             n_components,
             ir_dim,
             optimization_params,
-            iterative_optimization=False,
             parallel_processing=False,
             processes=4,
     ):
         optimization_results = self.get_optimization_results(
-            ir_data, ti_list, mask, im_dims, n_components, ir_dim, optimization_params, iterative_optimization,
+            ir_data, ti_list, mask, im_dims, n_components, ir_dim, optimization_params,
             parallel_processing, processes,
         )
         t1_matrix = optimization_results[:, :, :, 0:n_components]
@@ -179,18 +155,17 @@ class T1Calc:
             n_components,
             ir_dim,
             optimization_params,
-            iterative_optimization=False,
             parallel_processing=False,
             processes=4,
         ):
         if parallel_processing:
             optimization_results = self.parallel_optimize_t1(
-                ir_data, ti_list, mask, im_dims, n_components, ir_dim, optimization_params, iterative_optimization,
+                ir_data, ti_list, mask, im_dims, n_components, ir_dim, optimization_params,
                 processes,
             )
         else:
             optimization_results = self.optimize_t1(
-                ir_data, ti_list, mask, im_dims, n_components, ir_dim, optimization_params, iterative_optimization
+                ir_data, ti_list, mask, im_dims, n_components, ir_dim, optimization_params
             )
         return optimization_results
 
@@ -203,65 +178,7 @@ class T1Calc:
             n_components,
             ir_dim,
             optimization_params,
-            iterative_optimization=False,
     ):
-        if iterative_optimization:
-            optimization_results = np.zeros((im_dims[0], im_dims[1], im_dims[2], 2 * n_components))
-            pass
-        else:
-            optimization_results = self.optimize_t1_noniterative(
-                ir_data, ti_list, mask, im_dims, n_components, ir_dim, optimization_params
-            )
-
-        return optimization_results
-
-    def parallel_optimize_t1(
-            self,
-            ir_data,
-            ti_list,
-            mask,
-            im_dims,
-            n_components,
-            ir_dim,
-            optimization_params,
-            iterative_optimization=False,
-            processes=4
-    ):
-        if iterative_optimization:
-            optimization_results = np.zeros((im_dims[0], im_dims[1], im_dims[2], 2 * n_components))
-            pass
-        else:
-            optimization_results = self.parallel_optimize_t1_noniterative(
-                ir_data, ti_list, mask, im_dims, n_components, ir_dim, optimization_params
-            )
-
-        return optimization_results
-
-    def parallel_optimize_t1_noniterative(self, ir_data, ti_list, mask, im_dims, n_components, ir_dim, optimization_params):
-        ir_data = ir_data.reshape(-1, ir_dim)
-        mask = mask.reshape(-1, 1)
-
-        if sys.platform == "win32":
-            # mp.spawn.set_executable(_winapi.GetModuleFileName(0))
-            import _winapi
-            mp.set_executable(_winapi.GetModuleFileName(0))
-        pool = mp.Pool(processes=self.processes)  # initialize multiprocess
-        # run multiprocess and convert to numpy array
-        print("Starting optimization")
-        results = np.array(
-            pool.starmap(
-                self.single_voxel_parallel_optimize,
-                [
-                    (ir_data[i, :], ti_list, mask[i, :], n_components, optimization_params)
-                    for i in range(mask.shape[0])
-                ],
-            )
-        )
-        pool.close()
-        pool.terminate()
-        return results.reshape((im_dims[0], im_dims[1], im_dims[2], 2 * n_components))
-
-    def optimize_t1_noniterative(self, ir_data, ti_list, mask, im_dims, n_components, ir_dim, optimization_params):
         optimization_results = np.zeros((im_dims[0], im_dims[1], im_dims[2], 2*n_components))
         for i, j, k in itertools.product(range(im_dims[0]), range(im_dims[1]), range(im_dims[2])):
             if mask[i, j, k]:
@@ -274,6 +191,39 @@ class T1Calc:
                 except:
                     pass
         return optimization_results
+
+    def parallel_optimize_t1(
+            self,
+            ir_data,
+            ti_list,
+            mask,
+            im_dims,
+            n_components,
+            ir_dim,
+            optimization_params,
+            processes=4
+    ):
+        ir_data = ir_data.reshape(-1, ir_dim)
+        mask = mask.reshape(-1, 1)
+
+        if sys.platform == "win32":
+            # mp.spawn.set_executable(_winapi.GetModuleFileName(0))
+            import _winapi
+            mp.set_executable(_winapi.GetModuleFileName(0))
+        pool = mp.Pool(processes=processes)  # initialize multiprocess
+        # run multiprocess and convert to numpy array
+        results = np.array(
+            pool.starmap(
+                self.single_voxel_parallel_optimize,
+                [
+                    (ir_data[i, :], ti_list, mask[i, :], n_components, optimization_params)
+                    for i in range(mask.shape[0])
+                ],
+            )
+        )
+        pool.close()
+        pool.terminate()
+        return results.reshape((im_dims[0], im_dims[1], im_dims[2], 2 * n_components))
 
     def single_voxel_parallel_optimize(self, data, ti_list, mask, n_components, optimization_params):
         if mask:
