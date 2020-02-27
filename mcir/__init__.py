@@ -7,7 +7,7 @@ __version__ = '0.0.1'
 
 import sys
 if (sys.version_info < (3, 3)):
-    from t1_calc import T1Calc
+    from t1_calc_old import T1Calc
     from t1_hist import T1Hist
     import mcir_functions
 else:
